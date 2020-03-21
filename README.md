@@ -1,1 +1,3 @@
 # solitaire
+
+A solitaire project.
