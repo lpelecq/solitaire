@@ -1,4 +1,4 @@
-import solitaire as solitaire
+import solitaire 
 from termcolor import colored
 import re
 import time
