@@ -43,8 +43,9 @@ def coloredCardString(card):
     return str
 
 
-def displayBoard(board):
-    boardText = "Score: " + str(board.score) + "\n"
+def displayBoard(board):    
+    boardText = "~".join(["~" * (CARD_DISPLAY_WIDTH)] * solitaire.PILE_NUMBER) + "\n"
+    boardText += "Score: " + str(board.score) + "\n"
     boardText += (coloredCardString(board.diamondFoundation[-1]) if board.diamondFoundation.size > 0 else EMPTY_STACK_STR) + " "
     boardText += (coloredCardString(board.clubFoundation[-1]) if board.clubFoundation.size > 0 else EMPTY_STACK_STR) + " "
     boardText += (coloredCardString(board.heartFoundation[-1]) if board.heartFoundation.size > 0 else EMPTY_STACK_STR) + " "
@@ -53,7 +54,7 @@ def displayBoard(board):
     boardText += (coloredCardString(board.waste[-1]) if board.waste.size > 0 else EMPTY_STACK_STR) + " "
     boardText += (FACE_DOWN_CARD if board.talon.size > 0 else EMPTY_STACK_STR) + " "
     boardText += "\n"
-    boardText += ("-" * (CARD_DISPLAY_WIDTH + 1)) * solitaire.PILE_NUMBER + "\n"
+    boardText += "-".join(["-" * (CARD_DISPLAY_WIDTH)] * solitaire.PILE_NUMBER) + "\n"
 
     FaceUpPilesSizes = map(lambda stack: stack.size, board.faceUpPiles)
     FaceDownPilesSizes = map(lambda stack: stack.size, board.faceDownPiles)
@@ -82,39 +83,50 @@ def displayBoard(board):
 
     print(boardText)
 
-b = solitaire.Board()
+def startGame():
+    b = solitaire.Board()
 
-displayBoard(b)
+    displayBoard(b)
+    while True: 
+        while True:
+            cmd = input("Play: ")
+            if cmd == "D":
+                b.deal()
+                break
+            elif m := re.match('W>([0-7])', cmd):
+                b.playWasteToPile(int(m.group(1)))
+                break
+            elif m := re.match('([0-7])>([0-7])', cmd):
+                b.playPileToPile(int(m.group(1)), 0, int(m.group(2)))
+                break
+            elif m := re.match('([0-7]),([0-9]+)>([0-7])', cmd):
+                b.playPileToPile(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                break
+            elif m := re.match('([0-7])>([CSHD])', cmd):
+                b.playPileToFoundation(int(m.group(1)), str(m.group(2)))
+                break
+            elif m := re.match('([CSHD])>([0-7])', cmd):
+                b.playFoundationToPile(str(m.group(1)), int(m.group(2)))
+                break
+            elif m := re.match('W>([CSHD])', cmd):
+                b.playWasteToFoundation(str(m.group(1)))
+                break
+            elif cmd == "stop":
+                return
+        displayBoard(b)
+        if b.isResolved():
+            while not b.isCompleted():
+                b.playCompletionMove()
+                time.sleep(.100)
+                displayBoard(b)
+            break
+
 while True: 
     while True:
-        cmd = input("Play: ")
-        if cmd == "D":
-            b.deal()
+        cmd = input("What do you want to do? Play (P) / Quit (Q)\n")
+        if cmd == "P" or cmd == "p":
+            startGame()
             break
-        elif m := re.match('W>([0-7])', cmd):
-            b.playWasteToPile(int(m.group(1)))
-            break
-        elif m := re.match('([0-7])>([0-7])', cmd):
-            b.playPileToPile(int(m.group(1)), 0, int(m.group(2)))
-            break
-        elif m := re.match('([0-7]),([0-9]+)>([0-7])', cmd):
-            b.playPileToPile(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-            break
-        elif m := re.match('([0-7])>([CSHD])', cmd):
-            b.playPileToFoundation(int(m.group(1)), str(m.group(2)))
-            break
-        elif m := re.match('([CSHD])>([0-7])', cmd):
-            b.playFoundationToPile(str(m.group(1)), int(m.group(2)))
-            break
-        elif m := re.match('W>([CSHD])', cmd):
-            b.playWasteToFoundation(str(m.group(1)))
-            break
-        elif cmd == "exit":
+        elif cmd == "Q" or cmd == "q":
             exit(0)
-    displayBoard(b)
-    if b.isResolved():
-        while not b.isCompleted():
-            b.playCompletionMove()
-            time.sleep(.100)
-            displayBoard(b)
-        break
+            break

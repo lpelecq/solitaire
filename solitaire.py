@@ -1,5 +1,5 @@
-# Import the base classes:
 import pydealer
+import unittest
 
 DIAMONDS = "Diamonds"
 CLUBS = "Clubs"
@@ -40,8 +40,17 @@ def canBePlaced(topCard, bottomCard):
     return SOLITAIRE_RANK["values"][bottomCard.value] == (SOLITAIRE_RANK["values"][topCard.value] + 1)
 
 class Board:
+    """
+    Builds the required stacks and deals the cards.
+    """
     def __init__(self):
         self.score = 0
+        self.WASTE_TO_PILE_BONUS = 5
+        self.WASTE_TO_FOUNDATION_BONUS = 10
+        self.PILE_TO_FOUNDATION_BONUS = 10
+        self.PILE_CARD_FLIP_BONUS = 5
+        self.FOUNDATION_TO_PILE_PENALTY = 15
+        self.WASTE_RECYCLING_PENALTY = 100
         self.deck = pydealer.Deck()
         self.talon = pydealer.Stack()
         self.waste = pydealer.Stack()
@@ -67,20 +76,29 @@ class Board:
 
         self.talon.add(self.deck.deal(self.deck.size))
 
+    """
+    Deals a card from the talon to the waste.
+    If the talon is empty, flips the waste into the talon and deals on card into the waste.
+    """
     def deal(self):
         if self.talon.size == 0:
             self.talon.add(self.waste.deal(self.waste.size))
+            self.score = max(0, self.score - self.WASTE_RECYCLING_PENALTY)
         self.waste.add(self.talon.deal())
 
-
+    """
+    Deals the top card of the waste on the selected pile if possible.
+     - int destinationPileIndex: 
+        the index of the destination pile
+    """
     def playWasteToPile(self, destinationPileIndex):
         if self.waste.size > 0:
             if (self.faceUpPiles[destinationPileIndex].size == 0) and (self.waste[-1].value == "King"):
                 self.faceUpPiles[destinationPileIndex].add(self.waste.deal())
-                self.score += 5
+                self.score += self.WASTE_TO_PILE_BONUS
             if (self.faceUpPiles[destinationPileIndex].size > 0) and canBePlaced(self.waste[-1], self.faceUpPiles[destinationPileIndex][-1]):
                 self.faceUpPiles[destinationPileIndex].add(self.waste.deal())
-                self.score += 5
+                self.score += self.WASTE_TO_PILE_BONUS
     
     def playPileToPile(self, sourcePileIndex, movedCardIndex, destinationPileIndex):
         if self.faceUpPiles[sourcePileIndex].size > movedCardIndex:
@@ -94,7 +112,7 @@ class Board:
                 self.faceUpPiles[destinationPileIndex].add(movedCards)
         if self.faceUpPiles[sourcePileIndex].size == 0:
             self.faceUpPiles[sourcePileIndex].add(self.faceDownPiles[sourcePileIndex].deal())
-            self.score += 5
+            self.score += self.PILE_CARD_FLIP_BONUS
     
     def playPileToFoundation(self, sourcePileIndex, destinationFoundation):
         if self.faceUpPiles[sourcePileIndex].size > 0:
@@ -102,47 +120,47 @@ class Board:
                 card = self.faceUpPiles[sourcePileIndex][self.faceUpPiles[sourcePileIndex].size-1]
                 if (card.suit == DIAMONDS) and (card.value == "Ace" or ((self.diamondFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.diamondFoundation[-1].value] + 1)))):
                     self.diamondFoundation.add(self.faceUpPiles[sourcePileIndex].deal())
-                    self.score += 10
+                    self.score += self.PILE_TO_FOUNDATION_BONUS
             elif destinationFoundation == "C":
                 card = self.faceUpPiles[sourcePileIndex][self.faceUpPiles[sourcePileIndex].size-1]
                 if (card.suit == CLUBS) and (card.value == "Ace" or ((self.clubFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.clubFoundation[-1].value] + 1)))):
                     self.clubFoundation.add(self.faceUpPiles[sourcePileIndex].deal())
-                    self.score += 10
+                    self.score += self.PILE_TO_FOUNDATION_BONUS
             elif destinationFoundation == "H":
                 card = self.faceUpPiles[sourcePileIndex][self.faceUpPiles[sourcePileIndex].size-1]
                 if (card.suit == HEARTS) and (card.value == "Ace" or ((self.heartFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.heartFoundation[-1].value] + 1)))):
                     self.heartFoundation.add(self.faceUpPiles[sourcePileIndex].deal())
-                    self.score += 10
+                    self.score += self.PILE_TO_FOUNDATION_BONUS
             elif destinationFoundation == "S":
                 card = self.faceUpPiles[sourcePileIndex][self.faceUpPiles[sourcePileIndex].size-1]
                 if (card.suit == SPADES) and (card.value == "Ace" or ((self.spadeFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.spadeFoundation[-1].value] + 1)))):
                     self.spadeFoundation.add(self.faceUpPiles[sourcePileIndex].deal())
-                    self.score += 10
+                    self.score += self.PILE_TO_FOUNDATION_BONUS
         if self.faceUpPiles[sourcePileIndex].size == 0:
             self.faceUpPiles[sourcePileIndex].add(self.faceDownPiles[sourcePileIndex].deal())
-            self.score += 5
+            self.score += self.PILE_CARD_FLIP_BONUS
 
     def playFoundationToPile(self, sourceFoundation, destinationPileIndex):
         if sourceFoundation == "D":
             if (self.diamondFoundation.size > 0) and (self.faceUpPiles[destinationPileIndex].size > 0):
                 if canBePlaced(self.diamondFoundation[self.diamondFoundation.size-1], self.faceUpPiles[destinationPileIndex][-1]):
                     self.faceUpPiles[destinationPileIndex].add(self.diamondFoundation.deal())
-                    self.score = max(0, self.score - 15)
+                    self.score = max(0, self.score - self.FOUNDATION_TO_PILE_PENALTY)
         elif sourceFoundation == "C":
             if (self.clubFoundation.size > 0) and (self.faceUpPiles[destinationPileIndex].size > 0):
                 if canBePlaced(self.clubFoundation[self.clubFoundation.size-1], self.faceUpPiles[destinationPileIndex][-1]):
                     self.faceUpPiles[destinationPileIndex].add(self.clubFoundation.deal())
-                    self.score = max(0, self.score - 15)
+                    self.score = max(0, self.score - self.FOUNDATION_TO_PILE_PENALTY)
         elif sourceFoundation == "H":
             if (self.heartFoundation.size > 0) and (self.faceUpPiles[destinationPileIndex].size > 0):
                 if canBePlaced(self.heartFoundation[self.heartFoundation.size-1], self.faceUpPiles[destinationPileIndex][-1]):
                     self.faceUpPiles[destinationPileIndex].add(self.heartFoundation.deal())
-                    self.score = max(0, self.score - 15)
+                    self.score = max(0, self.score - self.FOUNDATION_TO_PILE_PENALTY)
         elif sourceFoundation == "S":
             if (self.spadeFoundation.size > 0) and (self.faceUpPiles[destinationPileIndex].size > 0):
                 if canBePlaced(self.spadeFoundation[self.spadeFoundation.size-1], self.faceUpPiles[destinationPileIndex][-1]):
                     self.faceUpPiles[destinationPileIndex].add(self.spadeFoundation.deal())
-                    self.score = max(0, self.score - 15)
+                    self.score = max(0, self.score - self.FOUNDATION_TO_PILE_PENALTY)
         
 
     def playWasteToFoundation(self, destinationFoundation):
@@ -151,25 +169,25 @@ class Board:
                 card = self.waste[-1]
                 if (self.waste[-1].suit == DIAMONDS) and ((card.value == "Ace") or ((self.diamondFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.diamondFoundation[-1].value] + 1)))):
                     self.diamondFoundation.add(self.waste.deal())
-                    self.score += 10
+                    self.score += self.WASTE_TO_FOUNDATION_BONUS
         elif destinationFoundation == "C":
             if self.waste.size > 0:
                 card = self.waste[-1]
                 if (self.waste[-1].suit == CLUBS) and ((card.value == "Ace") or ((self.clubFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.clubFoundation[-1].value] + 1)))):
                     self.clubFoundation.add(self.waste.deal())
-                    self.score += 10
+                    self.score += self.WASTE_TO_FOUNDATION_BONUS
         elif destinationFoundation == "H":
             if self.waste.size > 0:
                 card = self.waste[-1]
                 if (self.waste[-1].suit == HEARTS) and ((card.value == "Ace") or ((self.heartFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.heartFoundation[-1].value] + 1)))):
                     self.heartFoundation.add(self.waste.deal())
-                    self.score += 10
+                    self.score += self.WASTE_TO_FOUNDATION_BONUS
         elif destinationFoundation == "S":
             if self.waste.size > 0:
                 card = self.waste[-1]
                 if (self.waste[-1].suit == SPADES) and ((card.value == "Ace") or ((self.spadeFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.spadeFoundation[-1].value] + 1)))):
                     self.spadeFoundation.add(self.waste.deal())
-                    self.score += 10
+                    self.score += self.WASTE_TO_FOUNDATION_BONUS 
 
     def isResolved(self):
         return sum(map(lambda stack: stack.size, self.faceDownPiles)) == 0
@@ -185,40 +203,40 @@ class Board:
                     if card.suit == DIAMONDS:
                         if (card.value == "Ace") or ((self.diamondFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.diamondFoundation[-1].value] + 1))):
                             self.diamondFoundation.add(faceUpPile.deal())
-                            self.score += 10
+                            self.score += self.PILE_TO_FOUNDATION_BONUS
                             return
                     elif card.suit == CLUBS:
                         if (card.value == "Ace") or ((self.clubFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.clubFoundation[-1].value] + 1))):
                             self.clubFoundation.add(faceUpPile.deal())
-                            self.score += 10
+                            self.score += self.PILE_TO_FOUNDATION_BONUS
                             return
                     elif card.suit == HEARTS:
                         if (card.value == "Ace") or ((self.heartFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.heartFoundation[-1].value] + 1))):
                             self.heartFoundation.add(faceUpPile.deal())
-                            self.score += 10
+                            self.score += self.PILE_TO_FOUNDATION_BONUS
                             return
                     elif card.suit == SPADES:
                         if (card.value == "Ace") or ((self.spadeFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.spadeFoundation[-1].value] + 1))):
                             self.spadeFoundation.add(faceUpPile.deal())
-                            self.score += 10
+                            self.score += self.PILE_TO_FOUNDATION_BONUS
                             return
             if self.waste.size > 0:
                 card = self.waste[-1]
                 if (self.waste[-1].suit == DIAMONDS) and ((card.value == "Ace") or ((self.diamondFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.diamondFoundation[-1].value] + 1)))):
                     self.diamondFoundation.add(self.waste.deal())
-                    self.score += 10
+                    self.score += self.WASTE_TO_FOUNDATION_BONUS
                     return
                 elif (self.waste[-1].suit == CLUBS) and ((card.value == "Ace") or ((self.clubFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.clubFoundation[-1].value] + 1)))):
                     self.clubFoundation.add(self.waste.deal())
-                    self.score += 10
+                    self.score += self.WASTE_TO_FOUNDATION_BONUS
                     return
                 elif (self.waste[-1].suit == HEARTS) and ((card.value == "Ace") or ((self.heartFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.heartFoundation[-1].value] + 1)))):
                     self.heartFoundation.add(self.waste.deal())
-                    self.score += 10
+                    self.score += self.WASTE_TO_FOUNDATION_BONUS
                     return
                 elif (self.waste[-1].suit == SPADES) and ((card.value == "Ace") or ((self.spadeFoundation.size > 0) and (SOLITAIRE_RANK["values"][card.value] == (SOLITAIRE_RANK["values"][self.spadeFoundation[-1].value] + 1)))):
                     self.spadeFoundation.add(self.waste.deal())
-                    self.score += 10
+                    self.score += self.WASTE_TO_FOUNDATION_BONUS
                     return
             self.deal()
             return
